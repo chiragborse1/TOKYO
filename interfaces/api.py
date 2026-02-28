@@ -17,5 +17,5 @@ async def chat_endpoint(request: MessageRequest):
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    with open("interface/templates/index.html", "r") as f:
+    with open("interfaces/templates/index.html", "r") as f:
         return f.read()
