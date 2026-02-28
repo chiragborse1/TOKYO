@@ -1,6 +1,7 @@
 from groq import Groq
 from dotenv import load_dotenv
 from core.tools import TOOLS, get_tools_description
+from core.memory import save_message, load_history, clear_memory
 import os
 import re
 
@@ -23,7 +24,6 @@ The user's Windows PC details:
 
 """ + get_tools_description()
 
-conversation_history = []
 
 def execute_tool(tool_name, args_str):
     """Execute a tool by name with arguments"""
@@ -51,69 +51,60 @@ def execute_tool(tool_name, args_str):
 
 def chat(user_message):
     """Send a message to TOKYO and get a response"""
-    
-    conversation_history.append({
-        "role": "user",
-        "content": user_message
-    })
-    
+
+    # Save user message to Supabase
+    save_message("user", user_message)
+
+    # Load history from Supabase
+    history = load_history(20)
+
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
-            *conversation_history
+            *history
         ],
         temperature=0.7,
         max_tokens=1024
     )
-    
+
     assistant_message = response.choices[0].message.content
 
     # Check if TOKYO wants to use a tool
     tool_match = re.search(r'TOOL:\s*(\w+)[^\w].*?ARGS:\s*(.+)', assistant_message, re.DOTALL)
-    
+
     if tool_match:
         tool_name = tool_match.group(1).strip()
         args_str = tool_match.group(2).strip()
-        
+
         # Execute the tool
         tool_result = execute_tool(tool_name, args_str)
-        
-        # Send tool result back to TOKYO
-        conversation_history.append({
-            "role": "assistant",
-            "content": assistant_message
-        })
-        conversation_history.append({
-            "role": "user",
-            "content": f"Tool result: {tool_result}"
-        })
-        
+
+        # Save intermediate messages
+        save_message("assistant", assistant_message)
+        save_message("user", f"Tool result: {tool_result}")
+
         # Get final response
         final_response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
-                *conversation_history
+                *load_history(20)
             ],
             temperature=0.7,
             max_tokens=1024
         )
-        
+
         assistant_message = final_response.choices[0].message.content
-        
+
         # Clean any raw TOOL: text from final response
         assistant_message = re.sub(r'TOOL:\s*\w+.*?ARGS:\s*.+', '', assistant_message, flags=re.DOTALL).strip()
-    
-    conversation_history.append({
-        "role": "assistant",
-        "content": assistant_message
-    })
-    
+
+    # Save final assistant response
+    save_message("assistant", assistant_message)
+
     return assistant_message
 
 
 def clear_history():
-    global conversation_history
-    conversation_history = []
-    return "Conversation history cleared."
+    return clear_memory()
