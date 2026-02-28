@@ -1,0 +1,10 @@
+groq
+fastapi
+uvicorn
+python-telegram-bot
+python-dotenv
+requests
+beautifulsoup4
+schedule
+pyautogui
+supabase
