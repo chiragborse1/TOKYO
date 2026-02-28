@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from core.agent import chat, clear_history
 import os
 
-app - FastAPI()
+app = FastAPI()
 
 class MessageRequest(BaseModel):
     message:str
