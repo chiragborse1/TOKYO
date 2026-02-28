@@ -3,6 +3,9 @@ import subprocess
 import requests
 from bs4 import BeautifulSoup
 import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def create_file(filepath, content=""):
     """Create a new file with optional content"""
@@ -55,20 +58,43 @@ def move_file(source, destination):
         return f" Error moving file: {str(e)}"
 
 def search_web(query):
-    """Search the web using DuckDuckGo"""
+    """Search the web using Serper API"""
     try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        url = f"https://html.duckduckgo.com/html/?q={query.replace(' ', '+')}"
-        response = requests.get(url, headers=headers, timeout=10)
-        soup = BeautifulSoup(response.text, "html.parser")
+        api_key = os.getenv("SERPER_API_KEY")
+        headers = {
+            "X-API-KEY": api_key,
+            "Content-Type": "application/json"
+        }
+        payload = {"q": query, "num": 5}
+        response = requests.post(
+            "https://google.serper.dev/search",
+            headers=headers,
+            json=payload,
+            timeout=10
+        )
+        data = response.json()
         results = []
-        for result in soup.find_all("a", class_="result__a", limit=5):
-            results.append(f"• {result.get_text()} → {result['href']}")
+
+        # Answer box if available
+        if data.get("answerBox"):
+            answer = data["answerBox"].get("answer") or data["answerBox"].get("snippet")
+            if answer:
+                results.append(f"📌 Quick Answer: {answer}")
+
+        # Organic results
+        for item in data.get("organic", [])[:5]:
+            title = item.get("title", "")
+            snippet = item.get("snippet", "")
+            link = item.get("link", "")
+            results.append(f"• {title}\n  {snippet}\n  🔗 {link}")
+
         if results:
-            return "Search Results:\n" + "\n".join(results)
-        return "No results found."
+            return "🌐 Search Results:\n\n" + "\n\n".join(results)
+
+        return "No results found for: " + query
+
     except Exception as e:
-        return f" Error searching web: {str(e)}"
+        return f"❌ Error searching web: {str(e)}"
 
 def fetch_webpage(url):
     """Fetch and read content from a webpage"""
