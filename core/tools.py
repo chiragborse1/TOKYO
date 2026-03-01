@@ -165,7 +165,7 @@ try:
     with sync_playwright() as p:
         # First, check if browser is already running
         try:
-            browser = p.chromium.connect_over_cdp("http://localhost:9222")
+            browser = p.chromium.connect_over_cdp("http://127.0.0.1:9222")
             contexts = browser.contexts
             if contexts:
                 page = contexts[0].new_page()
@@ -286,12 +286,14 @@ except Exception as e:
         env = os.environ.copy()
         env["NODE_OPTIONS"] = "--no-warnings"
         
+        CREATE_NO_WINDOW = 0x08000000
         result = subprocess.run(
             args,
             capture_output=True,
             text=True,
             timeout=15,
-            env=env
+            env=env,
+            creationflags=CREATE_NO_WINDOW
         )
         if result.returncode != 0:
             return f"Error: {result.stderr.strip()}"
