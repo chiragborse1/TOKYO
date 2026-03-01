@@ -72,7 +72,7 @@ def chat(user_message):
         ]
 
         response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             messages=messages,
             temperature=0.7,
             max_tokens=512
@@ -106,7 +106,7 @@ def chat(user_message):
             ]
 
             final_response = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model="llama-3.1-8b-instant",
                 messages=final_messages,
                 temperature=0.7,
                 max_tokens=512
