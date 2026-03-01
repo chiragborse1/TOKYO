@@ -65,7 +65,7 @@ MODELS = [
     "llama-3.1-8b-instant",      # fallback when 70b hits daily limit
 ]
 
-def chat(user_message):
+def chat(user_message, model="auto"):
     try:
         # Load history once at the start
         history = load_history(6)
@@ -86,10 +86,12 @@ def chat(user_message):
         while iteration < max_iterations:
             iteration += 1
 
-            for model in MODELS:
+            models_to_try = MODELS if model == "auto" else [model]
+            
+            for current_model in models_to_try:
                 try:
                     response = client.chat.completions.create(
-                        model=model,
+                        model=current_model,
                         messages=messages,
                         temperature=0.7,
                         max_tokens=512

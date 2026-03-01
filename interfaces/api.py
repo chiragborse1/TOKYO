@@ -8,12 +8,13 @@ import os
 app = FastAPI()
 
 class MessageRequest(BaseModel):
-    message:str
+    message: str
+    model: str = "auto"
 
 @app.post("/chat")
 async def chat_endpoint(request: MessageRequest):
-    response =chat(request.message)
-    return{"response": response}
+    response = chat(request.message, model=request.model)
+    return {"response": response}
 
 @app.post("/clear")
 async def clear_endpoint():

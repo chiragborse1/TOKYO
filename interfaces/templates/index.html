@@ -142,6 +142,21 @@
             background: #cc0000;
         }
 
+        #model-select {
+            background: #111;
+            color: #fff;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 14px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        #model-select:focus {
+            border-color: #00d4ff;
+        }
+
         .typing {
             color: #555;
             font-size: 13px;
@@ -164,6 +179,12 @@
     </div>
 
     <div id="input-area">
+        <select id="model-select">
+            <option value="auto">Auto (70B &rarr; 8B)</option>
+            <option value="llama-3.3-70b-versatile">Llama 3.3 70B</option>
+            <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+            <option value="llama-3.1-8b-instant">Llama 3.1 8B</option>
+        </select>
         <input type="text" id="user-input" placeholder="Message TOKYO..." />
         <button id="clear-btn" onclick="clearHistory()">Clear</button>
         <button id="send-btn" onclick="sendMessage()">Send</button>
@@ -183,6 +204,7 @@
 
         async function sendMessage() {
             const message = userInput.value.trim();
+            const selectedModel = document.getElementById('model-select').value;
             if (!message) return;
 
             // Add user message
@@ -206,7 +228,7 @@
                 const res = await fetch('/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message }),
+                    body: JSON.stringify({ message: message, model: selectedModel }),
                     signal: currentAbortController.signal
                 });
 
