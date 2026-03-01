@@ -205,10 +205,15 @@ except Exception as e:
         
         # Run detached from the server so the GUI can actually render on the user's desktop
         CREATE_NEW_CONSOLE = 0x00000010
+        import os
+        env = os.environ.copy()
+        env["NODE_OPTIONS"] = "--no-warnings"
+        
         subprocess.Popen(
             ["python", script_path], 
             creationflags=CREATE_NEW_CONSOLE,
-            close_fds=True
+            close_fds=True,
+            env=env
         )
         return "Browser process launched/tab opened for: " + url
     except Exception as e:
@@ -277,11 +282,16 @@ except Exception as e:
         if text is not None:
             args.append(text)
             
+        import os
+        env = os.environ.copy()
+        env["NODE_OPTIONS"] = "--no-warnings"
+        
         result = subprocess.run(
             args,
             capture_output=True,
             text=True,
-            timeout=15
+            timeout=15,
+            env=env
         )
         if result.returncode != 0:
             return f"Error: {result.stderr.strip()}"
