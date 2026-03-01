@@ -26,84 +26,89 @@ The user's Windows PC details:
 
 
 def execute_tool(tool_name, args_str):
-    """Execute a tool by name with arguments"""
     if tool_name not in TOOLS:
-        return f"❌ Unknown tool: {tool_name}"
-    
+        return "Unknown tool: " + tool_name
+
     tool = TOOLS[tool_name]
-    
-    # If no args needed
+
     if not args_str.strip() or args_str.strip().lower() == "none":
         return tool()
-    
-    # Parse arguments
+
     args = [arg.strip() for arg in args_str.split("|") if arg.strip()]
-    
-    # Try with args first, then without
+
     try:
         return tool(*args)
     except TypeError:
         try:
             return tool()
         except Exception as e:
-            return f"❌ Error: {str(e)}"
+            return "Error: " + str(e)
 
 
 def chat(user_message):
-    """Send a message to TOKYO and get a response"""
+    try:
+        # Load history first
+        history = load_history(6)
 
-    # Save user message to Supabase
-    save_message("user", user_message)
+        # Save user message
+        save_message("user", user_message)
 
-    # Load history from Supabase
-    history = load_history(20)
-
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
+        # Build messages including current user message
+        messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
-            *history
-        ],
-        temperature=0.7,
-        max_tokens=1024
-    )
+            *history,
+            {"role": "user", "content": user_message}
+        ]
 
-    assistant_message = response.choices[0].message.content
-
-    # Check if TOKYO wants to use a tool
-    tool_match = re.search(r'TOOL:\s*(\w+)[^\w].*?ARGS:\s*(.+)', assistant_message, re.DOTALL)
-
-    if tool_match:
-        tool_name = tool_match.group(1).strip()
-        args_str = tool_match.group(2).strip()
-
-        # Execute the tool
-        tool_result = execute_tool(tool_name, args_str)
-
-        # Save intermediate messages
-        save_message("assistant", assistant_message)
-        save_message("user", f"Tool result: {tool_result}")
-
-        # Get final response
-        final_response = client.chat.completions.create(
+        response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                *load_history(20)
-            ],
+            messages=messages,
             temperature=0.7,
-            max_tokens=1024
+            max_tokens=512
         )
 
-        assistant_message = final_response.choices[0].message.content
+        assistant_message = response.choices[0].message.content
 
-        # Clean any raw TOOL: text from final response
-        assistant_message = re.sub(r'TOOL:\s*\w+.*?ARGS:\s*.+', '', assistant_message, flags=re.DOTALL).strip()
+        if not assistant_message:
+            return "TOKYO got no response. Try again."
 
-    # Save final assistant response
-    save_message("assistant", assistant_message)
+        # Check if TOKYO wants to use a tool
+        tool_match = re.search(r'TOOL:\s*(\w+)[^\w].*?ARGS:\s*(.+)', assistant_message, re.DOTALL)
 
-    return assistant_message
+        if tool_match:
+            tool_name = tool_match.group(1).strip()
+            args_str = tool_match.group(2).strip()
+
+            tool_result = execute_tool(tool_name, args_str)
+
+            save_message("assistant", assistant_message)
+            save_message("user", "Tool result: " + str(tool_result))
+
+            # Build updated messages for final response
+            updated_history = load_history(8)
+            final_messages = [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                *updated_history
+            ]
+
+            final_response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=final_messages,
+                temperature=0.7,
+                max_tokens=512
+            )
+
+            assistant_message = final_response.choices[0].message.content
+            assistant_message = re.sub(r'TOOL:\s*\w+.*?ARGS:\s*.+', '', assistant_message, flags=re.DOTALL).strip()
+
+        # Save final response
+        save_message("assistant", assistant_message)
+
+        return assistant_message
+
+    except Exception as e:
+        print("Chat error: " + str(e))
+        return "Error: " + str(e)
 
 
 def clear_history():

@@ -165,22 +165,22 @@ TOOLS = {
 def get_tools_description():
     """Returns a description of all tools for the AI"""
     return """
-You have access to these tools. To use a tool respond with EXACTLY this format:
+You have access to these tools. Use EXACTLY this format:
 TOOL: tool_name
 ARGS: argument1 | argument2
 
-Available tools:
-- create_file(filepath, content) → Create a file
-- read_file(filepath) → Read a file
-- delete_file(filepath) → Delete a file
-- list_files(directory) → List files in a folder
-- create_folder(folderpath) → Create a folder
-- move_file(source, destination) → Move a file
-- search_web(query) → Search the internet
-- fetch_webpage(url) → Read a webpage
-- run_python_code(code) → Execute Python code
-- open_application(app_name) → Open an app
-- get_system_info() → Get system info
+Tools:
+- create_file(filepath, content)
+- read_file(filepath)
+- delete_file(filepath)
+- list_files(directory)
+- create_folder(folderpath)
+- move_file(source, destination)
+- search_web(query)
+- fetch_webpage(url)
+- run_python_code(code)
+- open_application(app_name)
+- get_system_info()
 
-Always confirm with the user before deleting files.
+Confirm before deleting files.
 """

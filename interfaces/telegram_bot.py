@@ -21,6 +21,11 @@ async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle all text messages"""
+    
+    # Ignore if no message or no text
+    if not update.message or not update.message.text:
+        return
+    
     user_message = update.message.text
     
     # Show typing indicator
@@ -29,11 +34,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         action="typing"
     )
     
-    # Get response from TOKYO
-    response = chat(user_message)
-    
-    # Send response
-    await update.message.reply_text(response)
+    try:
+        # Get response from TOKYO
+        response = chat(user_message)
+        
+        # Send response
+        if response and len(response) > 0:
+            await update.message.reply_text(response)
+        else:
+            await update.message.reply_text("⚠️ TOKYO got confused. Please try again!")
+            
+    except Exception as e:
+        print(f"Chat error: {str(e)}")
+        await update.message.reply_text(f"❌ Error: {str(e)}") 
 
 async def error_handler(update, context):
     """Handle errors"""
