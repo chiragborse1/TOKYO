@@ -25,10 +25,10 @@ def load_history(limit=20):
     try:
         response = supabase.table("conversations")\
             .select("role, content")\
-            .order("created_at", desc=False)\
+            .order("created_at", desc=True)\
             .limit(limit)\
             .execute()
-        return response.data
+        return list(reversed(response.data))
     except Exception as e:
         print(f"Memory error loading: {str(e)}")
         return []
