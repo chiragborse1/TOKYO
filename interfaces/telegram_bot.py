@@ -1,8 +1,13 @@
+import os
+import sys
+
+# Add project root to sys.path so we can import from core
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from core.agent import chat, clear_history
 from dotenv import load_dotenv
-import os
 
 load_dotenv()
 
