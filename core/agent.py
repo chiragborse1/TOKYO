@@ -82,7 +82,7 @@ def chat(user_message):
             iteration += 1
 
             response = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
+                model="mixtral-8x7b-32768",
                 messages=messages,
                 temperature=0.7,
                 max_tokens=512
@@ -94,7 +94,7 @@ def chat(user_message):
                 return "TOKYO got no response. Try again."
 
             # Find ALL tool usages in the response, gracefully handling absent TOOL: prefix
-            tool_matches = list(re.finditer(r'<tool>\s*(?:TOOL:\s*)?([a-zA-Z0-9_]+)\s*.*?ARGS:\s*(.*?)\s*</tool>', assistant_message, re.DOTALL | re.IGNORECASE))
+            tool_matches = list(re.finditer(r'<tool>\s*(?:TOOL:\s*)?([a-zA-Z0-9_]+).*?ARGS:\s*(.+?)\s*</tool>', assistant_message, re.DOTALL | re.IGNORECASE))
             
             if not tool_matches:
                 # Fallback for old format

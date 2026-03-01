@@ -156,70 +156,20 @@ def browser_open(url):
     try:
         if not url.startswith(('http://', 'https://')):
             url = 'https://' + url
-            
-        script = f"""
-import sys
-from playwright.sync_api import sync_playwright
 
-try:
-    with sync_playwright() as p:
-        # First, check if browser is already running
-        try:
-            browser = p.chromium.connect_over_cdp("http://127.0.0.1:9222")
-            contexts = browser.contexts
-            if contexts:
-                page = contexts[0].new_page()
-                page.goto('{url}')
-                print('Opened new tab in existing browser.')
-            browser.close()
-            sys.exit(0)
-        except Exception:
-            # If it fails, the browser isn't running. We must launch it.
-            pass
-
-        # Launch a persistent context to save cookies, logins, and avoid incognito mode
-        profile_dir = "C:\\\\Users\\\\chira\\\\Downloads\\\\TOKYO\\\\data\\\\browser_profile"
-        browser_context = p.chromium.launch_persistent_context(
-            user_data_dir=profile_dir,
-            headless=False,
-            args=['--remote-debugging-port=9222']
-        )
+        chrome_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
         
-        # In a persistent context, pages[0] is usually the default blank tab
-        if len(browser_context.pages) > 0:
-            page = browser_context.pages[0]
-        else:
-            page = browser_context.new_page()
-            
-        page.goto('{url}')
-        
-        # Keep the browser open until the user closes the last page
-        page.wait_for_event("close", timeout=0)
-        browser_context.close()
-except Exception as e:
-    print("Browser error:", str(e))
-"""
-        import os
-        import tempfile
-        script_path = os.path.join(tempfile.gettempdir(), "tokyo_browser_script.py")
-        with open(script_path, "w", encoding="utf-8") as f:
-            f.write(script)
-        
-        # Run detached from the server so the GUI can actually render on the user's desktop
-        CREATE_NEW_CONSOLE = 0x00000010
-        import os
-        env = os.environ.copy()
-        env["NODE_OPTIONS"] = "--no-warnings"
-        
+        import subprocess
         subprocess.Popen(
-            ["python", script_path], 
-            creationflags=CREATE_NEW_CONSOLE,
-            close_fds=True,
-            env=env
+            [chrome_path, "--remote-debugging-port=9222", url],
+            creationflags=0x00000008,
+            close_fds=True
         )
-        return "Browser process launched/tab opened for: " + url
+        import time
+        time.sleep(2)  # wait for Chrome to load
+        return "Opened Chrome at: " + url
     except Exception as e:
-        return "Error: " + str(e)
+        return "Error opening browser: " + str(e)
 
 
 
@@ -364,7 +314,7 @@ Tools:
 - get_system_info()
 - browser_open(url): opens a visible Chrome browser with persistent session.
 - browser_click(selector): clicks an element. ALWAYSS prefer basic locators if possible, e.g. text="Like" or [aria-label="Search"] or #submit_btn. DO NOT use complex unverified XPath.
-- browser_type(selector, text): types text into an element. Always prefer basic locators, e.g. [name="search_query"] or text="Search".
+- browser_type(selector, text): types text into an element. Always prefer basic locators, e.g. [name="search_query"] or text="Search". Example for YouTube search: `browser_type("[name='search_query']", "dua lipa")`, then click search: `browser_click("[aria-label='Search']")`
 - browser_get_text()
 - browser_screenshot(filename)
 - browser_close()
