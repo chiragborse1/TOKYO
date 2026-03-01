@@ -1,3 +1,4 @@
+from playwright.sync_api import sync_playwright
 import os
 import subprocess
 import requests
@@ -147,6 +148,61 @@ def get_system_info():
     except Exception as e:
         return f" Error getting system info: {str(e)}"
 
+# -------------------------------------------------
+# BROWSER TOOLS
+# -------------------------------------------------
+
+def browser_open(url):
+    try:
+        if not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+        script = f"""
+from playwright.sync_api import sync_playwright
+with sync_playwright() as p:
+    browser = p.chromium.launch(headless=False)
+    page = browser.new_page()
+    page.goto('{url}')
+    input('Browser open. Press Enter to close...')
+    browser.close()
+"""
+        script_path = "C:\\Users\\chira\\Downloads\\TOKYO\\data\\browser_script.py"
+        with open(script_path, "w") as f:
+            f.write(script)
+        subprocess.Popen(["python", script_path])
+        return "Browser opened at: " + url
+    except Exception as e:
+        return "Error: " + str(e)
+
+def browser_screenshot(filename="screenshot.png"):
+    try:
+        path = "C:\\Users\\chira\\Downloads\\" + filename
+        script = f"""
+from playwright.sync_api import sync_playwright
+with sync_playwright() as p:
+    browser = p.chromium.launch(headless=True)
+    page = browser.new_page()
+    page.screenshot(path=r'{path}')
+    browser.close()
+"""
+        script_path = "C:\\Users\\chira\\Downloads\\TOKYO\\data\\screenshot_script.py"
+        with open(script_path, "w") as f:
+            f.write(script)
+        result = subprocess.run(["python", script_path], capture_output=True, timeout=15)
+        return "Screenshot saved: " + path
+    except Exception as e:
+        return "Error: " + str(e)
+
+def browser_click(selector):
+    return "Use browser_open first, then interact manually for now."
+
+def browser_type(selector, text):
+    return "Use browser_open first, then interact manually for now."
+
+def browser_get_text():
+    return "Use browser_open first, then interact manually for now."
+
+def browser_close():
+    return "Close the browser window manually."
 
 TOOLS = {
     "create_file": create_file,
@@ -160,14 +216,21 @@ TOOLS = {
     "run_python_code": run_python_code,
     "open_application": open_application,
     "get_system_info": get_system_info,
+    "browser_open": browser_open,
+    "browser_click": browser_click,
+    "browser_type": browser_type,
+    "browser_get_text": browser_get_text,
+    "browser_screenshot": browser_screenshot,
+    "browser_close": browser_close,
 }
 
 def get_tools_description():
-    """Returns a description of all tools for the AI"""
     return """
 You have access to these tools. Use EXACTLY this format:
+<tool>
 TOOL: tool_name
 ARGS: argument1 | argument2
+</tool>
 
 Tools:
 - create_file(filepath, content)
@@ -181,6 +244,12 @@ Tools:
 - run_python_code(code)
 - open_application(app_name)
 - get_system_info()
+- browser_open(url)
+- browser_click(selector)
+- browser_type(selector, text)
+- browser_get_text()
+- browser_screenshot(filename)
+- browser_close()
 
 Confirm before deleting files.
 """
