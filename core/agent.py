@@ -42,7 +42,11 @@ def execute_tool(tool_name, args_str):
         if num_params == 1:
             args = [args_str.strip()]
         else:
-            args = [arg.strip() for arg in args_str.split("|") if arg.strip()]
+            if "|" in args_str:
+                args = [arg.strip() for arg in args_str.split("|") if arg.strip()]
+            else:
+                # Fallback if LLM uses comma instead of pipe
+                args = [arg.strip() for arg in args_str.split(",", num_params - 1) if arg.strip()]
     except Exception:
         args = [arg.strip() for arg in args_str.split("|") if arg.strip()]
 
@@ -58,26 +62,24 @@ def execute_tool(tool_name, args_str):
 
 def chat(user_message):
     try:
-        # Load history first
+        # Load history once at the start
         history = load_history(6)
 
         # Save the initial user message
         save_message("user", user_message)
+
+        # Initialize the local message history array
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            *history,
+            {"role": "user", "content": user_message}
+        ]
 
         iteration = 0
         max_iterations = 5
 
         while iteration < max_iterations:
             iteration += 1
-            
-            # Reload history so the LLM sees the latest tool results
-            current_history = load_history(10)
-            
-            # Build messages
-            messages = [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                *current_history
-            ]
 
             response = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
@@ -91,17 +93,17 @@ def chat(user_message):
             if not assistant_message:
                 return "TOKYO got no response. Try again."
 
-            # Find ALL tool usages in the response
-            tool_matches = list(re.finditer(r'<tool>.*?TOOL:\s*(\w+).*?ARGS:\s*(.*?)\s*</tool>', assistant_message, re.DOTALL))
+            # Find ALL tool usages in the response, gracefully handling absent TOOL: prefix
+            tool_matches = list(re.finditer(r'<tool>\s*(?:TOOL:\s*)?([a-zA-Z0-9_]+)\s*.*?ARGS:\s*(.*?)\s*</tool>', assistant_message, re.DOTALL | re.IGNORECASE))
             
             if not tool_matches:
                 # Fallback for old format
-                tool_matches = list(re.finditer(r'TOOL:\s*(\w+)[^\w].*?ARGS:\s*(.*?)(?=\n\n|\Z)', assistant_message, re.DOTALL))
+                tool_matches = list(re.finditer(r'TOOL:\s*([a-zA-Z0-9_]+)[^\w].*?ARGS:\s*(.*?)(?=\n\n|\Z)', assistant_message, re.DOTALL | re.IGNORECASE))
 
             # If no tools were found, we are done!
             if not tool_matches:
                 clean_message = re.sub(r'<tool>.*?</tool>', '', assistant_message, flags=re.DOTALL | re.IGNORECASE).strip()
-                clean_message = re.sub(r'TOOL:\s*\w+.*?ARGS:\s*.*', '', clean_message, flags=re.DOTALL).strip()
+                clean_message = re.sub(r'TOOL:\s*\w+.*?ARGS:\s*.*', '', clean_message, flags=re.DOTALL | re.IGNORECASE).strip()
                 
                 # Save the final conversational response
                 save_message("assistant", assistant_message)
@@ -109,19 +111,21 @@ def chat(user_message):
 
             # Tools were found! Save the assistant's thought process
             save_message("assistant", assistant_message)
+            messages.append({"role": "assistant", "content": assistant_message})
             
             # Execute every tool requested
             combined_results = []
             for match in tool_matches:
-                tool_name = match.group(1).strip()
+                tool_name = match.group(1).strip().lower()
                 args_str = match.group(2).strip()
                 
                 tool_result = execute_tool(tool_name, args_str)
                 combined_results.append(f"Tool `{tool_name}` result: {tool_result}")
 
-            # Feed the results back to the LLM in the next iteration
+            # Feed the results back to the LLM in the next iteration locally
             results_str = "Tool results:\n" + "\n".join(combined_results)
             save_message("user", results_str)
+            messages.append({"role": "user", "content": results_str})
 
         return "Error: Maximum tool execution iterations reached."
 

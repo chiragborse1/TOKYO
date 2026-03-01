@@ -287,14 +287,17 @@ except Exception as e:
             args.append(text)
             
         import os
+        import tempfile
         env = os.environ.copy()
         env["NODE_OPTIONS"] = "--no-warnings"
+        env["PYTHONIOENCODING"] = "utf-8"
         
         CREATE_NO_WINDOW = 0x08000000
         result = subprocess.run(
             args,
             capture_output=True,
             text=True,
+            encoding="utf-8",
             timeout=15,
             env=env,
             creationflags=CREATE_NO_WINDOW
