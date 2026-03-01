@@ -156,23 +156,51 @@ def browser_open(url):
     try:
         if not url.startswith(('http://', 'https://')):
             url = 'https://' + url
+            
         script = f"""
+import sys
 from playwright.sync_api import sync_playwright
+
 try:
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
-        context = browser.new_context()
-        page = context.new_page()
+        # First, check if browser is already running
+        try:
+            browser = p.chromium.connect_over_cdp("http://localhost:9222")
+            contexts = browser.contexts
+            if contexts:
+                page = contexts[0].new_page()
+                page.goto('{url}')
+                print('Opened new tab in existing browser.')
+            browser.close()
+            sys.exit(0)
+        except Exception:
+            # If it fails, the browser isn't running. We must launch it.
+            pass
+
+        # Launch a persistent context to save cookies, logins, and avoid incognito mode
+        profile_dir = "C:\\\\Users\\\\chira\\\\Downloads\\\\TOKYO\\\\data\\\\browser_profile"
+        browser_context = p.chromium.launch_persistent_context(
+            user_data_dir=profile_dir,
+            headless=False,
+            args=['--remote-debugging-port=9222']
+        )
+        
+        # In a persistent context, pages[0] is usually the default blank tab
+        if len(browser_context.pages) > 0:
+            page = browser_context.pages[0]
+        else:
+            page = browser_context.new_page()
+            
         page.goto('{url}')
         
-        # Keep the browser open until the user closes the page
+        # Keep the browser open until the user closes the last page
         page.wait_for_event("close", timeout=0)
-        browser.close()
+        browser_context.close()
 except Exception as e:
-    pass
+    print("Browser error:", str(e))
 """
         script_path = "C:\\Users\\chira\\Downloads\\TOKYO\\data\\browser_script.py"
-        with open(script_path, "w") as f:
+        with open(script_path, "w", encoding="utf-8") as f:
             f.write(script)
         
         # Run detached from the server so the GUI can actually render on the user's desktop
@@ -182,9 +210,10 @@ except Exception as e:
             creationflags=CREATE_NEW_CONSOLE,
             close_fds=True
         )
-        return "Browser opened at: " + url
+        return "Browser process launched/tab opened for: " + url
     except Exception as e:
         return "Error: " + str(e)
+
 
 
 def browser_screenshot(filename="screenshot.png"):
@@ -206,17 +235,71 @@ with sync_playwright() as p:
     except Exception as e:
         return "Error: " + str(e)
 
+def _run_browser_action(action, selector=None, text=None):
+    """Helper to connect to the running browser and execute an action safely via arguments."""
+    script = f"""
+import sys
+from playwright.sync_api import sync_playwright
+
+action = sys.argv[1]
+selector = sys.argv[2] if len(sys.argv) > 2 else None
+text = sys.argv[3] if len(sys.argv) > 3 else None
+
+try:
+    with sync_playwright() as p:
+        browser = p.chromium.connect_over_cdp("http://localhost:9222")
+        page = browser.contexts[0].pages[0]
+        
+        if action == "click" and selector:
+            page.click(selector)
+            print(f"Clicked: {{selector}}")
+        elif action == "type" and selector and text is not None:
+            page.fill(selector, text)
+            print(f"Typed into {{selector}}")
+        elif action == "get_text":
+            print(page.inner_text("body")[:2000])
+        elif action == "close":
+            page.close()
+            print("Browser closed")
+            
+        browser.close()
+except Exception as e:
+    print(str(e))
+"""
+    try:
+        script_path = "C:\\Users\\chira\\Downloads\\TOKYO\\data\\action_script.py"
+        with open(script_path, "w", encoding="utf-8") as f:
+            f.write(script)
+            
+        args = ["python", script_path, action]
+        if selector is not None:
+            args.append(selector)
+        if text is not None:
+            args.append(text)
+            
+        result = subprocess.run(
+            args,
+            capture_output=True,
+            text=True,
+            timeout=15
+        )
+        if result.returncode != 0:
+            return f"Error: {result.stderr.strip()}"
+        return result.stdout.strip() or "Success"
+    except Exception as e:
+        return f"Error executing browser action: {str(e)}"
+
 def browser_click(selector):
-    return "Use browser_open first, then interact manually for now."
+    return _run_browser_action("click", selector)
 
 def browser_type(selector, text):
-    return "Use browser_open first, then interact manually for now."
+    return _run_browser_action("type", selector, text)
 
 def browser_get_text():
-    return "Use browser_open first, then interact manually for now."
+    return _run_browser_action("get_text")
 
 def browser_close():
-    return "Close the browser window manually."
+    return _run_browser_action("close")
 
 TOOLS = {
     "create_file": create_file,
