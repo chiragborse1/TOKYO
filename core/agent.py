@@ -113,13 +113,16 @@ def chat(user_message):
             )
 
             assistant_message = final_response.choices[0].message.content
-            assistant_message = re.sub(r'<tool>.*?</tool>', '', assistant_message, flags=re.DOTALL | re.IGNORECASE)
-            assistant_message = re.sub(r'TOOL:\s*\w+.*?ARGS:\s*.*', '', assistant_message, flags=re.DOTALL).strip()
+            
+            clean_message = re.sub(r'<tool>.*?</tool>', '', assistant_message, flags=re.DOTALL | re.IGNORECASE)
+            clean_message = re.sub(r'TOOL:\s*\w+.*?ARGS:\s*.*', '', clean_message, flags=re.DOTALL).strip()
+        else:
+            clean_message = assistant_message
 
         # Save final response
         save_message("assistant", assistant_message)
 
-        return assistant_message
+        return clean_message
 
     except Exception as e:
         print("Chat error: " + str(e))
