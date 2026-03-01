@@ -158,20 +158,34 @@ def browser_open(url):
             url = 'https://' + url
         script = f"""
 from playwright.sync_api import sync_playwright
-with sync_playwright() as p:
-    browser = p.chromium.launch(headless=False)
-    page = browser.new_page()
-    page.goto('{url}')
-    input('Browser open. Press Enter to close...')
-    browser.close()
+try:
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False)
+        context = browser.new_context()
+        page = context.new_page()
+        page.goto('{url}')
+        
+        # Keep the browser open until the user closes the page
+        page.wait_for_event("close", timeout=0)
+        browser.close()
+except Exception as e:
+    pass
 """
         script_path = "C:\\Users\\chira\\Downloads\\TOKYO\\data\\browser_script.py"
         with open(script_path, "w") as f:
             f.write(script)
-        subprocess.Popen(["python", script_path])
+        
+        # Run detached from the server so the GUI can actually render on the user's desktop
+        CREATE_NEW_CONSOLE = 0x00000010
+        subprocess.Popen(
+            ["python", script_path], 
+            creationflags=CREATE_NEW_CONSOLE,
+            close_fds=True
+        )
         return "Browser opened at: " + url
     except Exception as e:
         return "Error: " + str(e)
+
 
 def browser_screenshot(filename="screenshot.png"):
     try:
