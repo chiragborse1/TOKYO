@@ -60,6 +60,11 @@ def execute_tool(tool_name, args_str):
 
 
 
+MODELS = [
+    "llama-3.3-70b-versatile",   # best, use first
+    "llama-3.1-8b-instant",      # fallback when 70b hits daily limit
+]
+
 def chat(user_message):
     try:
         # Load history once at the start
@@ -81,12 +86,19 @@ def chat(user_message):
         while iteration < max_iterations:
             iteration += 1
 
-            response = client.chat.completions.create(
-                model="mixtral-8x7b-32768",
-                messages=messages,
-                temperature=0.7,
-                max_tokens=512
-            )
+            for model in MODELS:
+                try:
+                    response = client.chat.completions.create(
+                        model=model,
+                        messages=messages,
+                        temperature=0.7,
+                        max_tokens=512
+                    )
+                    break  # success, stop trying models
+                except Exception as e:
+                    if "rate_limit" in str(e).lower() or "429" in str(e) or "decommissioned" in str(e).lower():
+                        continue  # try next model
+                    raise  # different error, re-raise it
 
             assistant_message = response.choices[0].message.content
 
