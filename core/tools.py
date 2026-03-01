@@ -339,6 +339,8 @@ TOOL: tool_name
 ARGS: argument1 | argument2
 </tool>
 
+You can output multiple <tool> blocks at once to perform actions sequentially.
+
 Tools:
 - create_file(filepath, content)
 - read_file(filepath)
@@ -351,9 +353,9 @@ Tools:
 - run_python_code(code)
 - open_application(app_name)
 - get_system_info()
-- browser_open(url)
-- browser_click(selector)
-- browser_type(selector, text)
+- browser_open(url): opens a visible Chrome browser with persistent session.
+- browser_click(selector): clicks an element. ALWAYSS prefer basic locators if possible, e.g. text="Like" or [aria-label="Search"] or #submit_btn. DO NOT use complex unverified XPath.
+- browser_type(selector, text): types text into an element. Always prefer basic locators, e.g. [name="search_query"] or text="Search".
 - browser_get_text()
 - browser_screenshot(filename)
 - browser_close()

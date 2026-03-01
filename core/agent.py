@@ -61,68 +61,69 @@ def chat(user_message):
         # Load history first
         history = load_history(6)
 
-        # Save user message
+        # Save the initial user message
         save_message("user", user_message)
 
-        # Build messages including current user message
-        messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            *history,
-            {"role": "user", "content": user_message}
-        ]
+        iteration = 0
+        max_iterations = 5
 
-        response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=messages,
-            temperature=0.7,
-            max_tokens=512
-        )
-
-        assistant_message = response.choices[0].message.content
-
-        if not assistant_message:
-            return "TOKYO got no response. Try again."
-
-        # Check if TOKYO wants to use a tool
-        tool_match = re.search(r'<tool>.*?TOOL:\s*(\w+).*?ARGS:\s*(.*?)\s*</tool>', assistant_message, re.DOTALL)
-        if not tool_match:
-            # Fallback for old format
-            tool_match = re.search(r'TOOL:\s*(\w+)[^\w].*?ARGS:\s*(.*?)(?=\n\n|\Z)', assistant_message, re.DOTALL)
-
-        if tool_match:
-            tool_name = tool_match.group(1).strip()
-            args_str = tool_match.group(2).strip()
-
-            tool_result = execute_tool(tool_name, args_str)
-
-            save_message("assistant", assistant_message)
-            save_message("user", "Tool result: " + str(tool_result))
-
-            # Build updated messages for final response
-            updated_history = load_history(8)
-            final_messages = [
+        while iteration < max_iterations:
+            iteration += 1
+            
+            # Reload history so the LLM sees the latest tool results
+            current_history = load_history(10)
+            
+            # Build messages
+            messages = [
                 {"role": "system", "content": SYSTEM_PROMPT},
-                *updated_history
+                *current_history
             ]
 
-            final_response = client.chat.completions.create(
+            response = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
-                messages=final_messages,
+                messages=messages,
                 temperature=0.7,
                 max_tokens=512
             )
 
-            assistant_message = final_response.choices[0].message.content
+            assistant_message = response.choices[0].message.content
+
+            if not assistant_message:
+                return "TOKYO got no response. Try again."
+
+            # Find ALL tool usages in the response
+            tool_matches = list(re.finditer(r'<tool>.*?TOOL:\s*(\w+).*?ARGS:\s*(.*?)\s*</tool>', assistant_message, re.DOTALL))
             
-            clean_message = re.sub(r'<tool>.*?</tool>', '', assistant_message, flags=re.DOTALL | re.IGNORECASE)
-            clean_message = re.sub(r'TOOL:\s*\w+.*?ARGS:\s*.*', '', clean_message, flags=re.DOTALL).strip()
-        else:
-            clean_message = assistant_message
+            if not tool_matches:
+                # Fallback for old format
+                tool_matches = list(re.finditer(r'TOOL:\s*(\w+)[^\w].*?ARGS:\s*(.*?)(?=\n\n|\Z)', assistant_message, re.DOTALL))
 
-        # Save final response
-        save_message("assistant", assistant_message)
+            # If no tools were found, we are done!
+            if not tool_matches:
+                clean_message = re.sub(r'<tool>.*?</tool>', '', assistant_message, flags=re.DOTALL | re.IGNORECASE).strip()
+                clean_message = re.sub(r'TOOL:\s*\w+.*?ARGS:\s*.*', '', clean_message, flags=re.DOTALL).strip()
+                
+                # Save the final conversational response
+                save_message("assistant", assistant_message)
+                return clean_message
 
-        return clean_message
+            # Tools were found! Save the assistant's thought process
+            save_message("assistant", assistant_message)
+            
+            # Execute every tool requested
+            combined_results = []
+            for match in tool_matches:
+                tool_name = match.group(1).strip()
+                args_str = match.group(2).strip()
+                
+                tool_result = execute_tool(tool_name, args_str)
+                combined_results.append(f"Tool `{tool_name}` result: {tool_result}")
+
+            # Feed the results back to the LLM in the next iteration
+            results_str = "Tool results:\n" + "\n".join(combined_results)
+            save_message("user", results_str)
+
+        return "Error: Maximum tool execution iterations reached."
 
     except Exception as e:
         print("Chat error: " + str(e))
