@@ -199,7 +199,9 @@ try:
 except Exception as e:
     print("Browser error:", str(e))
 """
-        script_path = "C:\\Users\\chira\\Downloads\\TOKYO\\data\\browser_script.py"
+        import os
+        import tempfile
+        script_path = os.path.join(tempfile.gettempdir(), "tokyo_browser_script.py")
         with open(script_path, "w", encoding="utf-8") as f:
             f.write(script)
         
@@ -272,7 +274,9 @@ except Exception as e:
     print(str(e))
 """
     try:
-        script_path = "C:\\Users\\chira\\Downloads\\TOKYO\\data\\action_script.py"
+        import os
+        import tempfile
+        script_path = os.path.join(tempfile.gettempdir(), "tokyo_action_script.py")
         with open(script_path, "w", encoding="utf-8") as f:
             f.write(script)
             

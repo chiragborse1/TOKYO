@@ -15,6 +15,11 @@ async def chat_endpoint(request: MessageRequest):
     response =chat(request.message)
     return{"response": response}
 
+@app.post("/clear")
+async def clear_endpoint():
+    clear_history()
+    return {"status": "success"}
+
 @app.get("/", response_class=HTMLResponse)
 async def root():
     with open("interfaces/templates/index.html", "r") as f:
