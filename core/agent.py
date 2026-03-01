@@ -25,6 +25,8 @@ The user's Windows PC details:
 """ + get_tools_description()
 
 
+import inspect
+
 def execute_tool(tool_name, args_str):
     if tool_name not in TOOLS:
         return "Unknown tool: " + tool_name
@@ -34,7 +36,15 @@ def execute_tool(tool_name, args_str):
     if not args_str.strip() or args_str.strip().lower() == "none":
         return tool()
 
-    args = [arg.strip() for arg in args_str.split("|") if arg.strip()]
+    try:
+        sig = inspect.signature(tool)
+        num_params = len(sig.parameters)
+        if num_params == 1:
+            args = [args_str.strip()]
+        else:
+            args = [arg.strip() for arg in args_str.split("|") if arg.strip()]
+    except Exception:
+        args = [arg.strip() for arg in args_str.split("|") if arg.strip()]
 
     try:
         return tool(*args)
@@ -43,6 +53,7 @@ def execute_tool(tool_name, args_str):
             return tool()
         except Exception as e:
             return "Error: " + str(e)
+
 
 
 def chat(user_message):
@@ -73,7 +84,10 @@ def chat(user_message):
             return "TOKYO got no response. Try again."
 
         # Check if TOKYO wants to use a tool
-        tool_match = re.search(r'TOOL:\s*(\w+)[^\w].*?ARGS:\s*(.+)', assistant_message, re.DOTALL)
+        tool_match = re.search(r'<tool>.*?TOOL:\s*(\w+).*?ARGS:\s*(.*?)\s*</tool>', assistant_message, re.DOTALL)
+        if not tool_match:
+            # Fallback for old format
+            tool_match = re.search(r'TOOL:\s*(\w+)[^\w].*?ARGS:\s*(.*?)(?=\n\n|\Z)', assistant_message, re.DOTALL)
 
         if tool_match:
             tool_name = tool_match.group(1).strip()
@@ -99,7 +113,8 @@ def chat(user_message):
             )
 
             assistant_message = final_response.choices[0].message.content
-            assistant_message = re.sub(r'TOOL:\s*\w+.*?ARGS:\s*.+', '', assistant_message, flags=re.DOTALL).strip()
+            assistant_message = re.sub(r'<tool>.*?</tool>', '', assistant_message, flags=re.DOTALL | re.IGNORECASE)
+            assistant_message = re.sub(r'TOOL:\s*\w+.*?ARGS:\s*.*', '', assistant_message, flags=re.DOTALL).strip()
 
         # Save final response
         save_message("assistant", assistant_message)
