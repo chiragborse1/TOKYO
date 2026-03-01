@@ -133,6 +133,15 @@
             color: #fff;
         }
 
+        #stop-btn {
+            background: #ff4444;
+            display: none;
+        }
+
+        #stop-btn:hover {
+            background: #cc0000;
+        }
+
         .typing {
             color: #555;
             font-size: 13px;
@@ -157,12 +166,16 @@
     <div id="input-area">
         <input type="text" id="user-input" placeholder="Message TOKYO..." />
         <button id="clear-btn" onclick="clearHistory()">Clear</button>
-        <button onclick="sendMessage()">Send</button>
+        <button id="send-btn" onclick="sendMessage()">Send</button>
+        <button id="stop-btn" onclick="stopMessage()">Stop</button>
     </div>
 
     <script>
         const chatContainer = document.getElementById('chat-container');
         const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        let currentAbortController = null;
 
         userInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendMessage();
@@ -184,16 +197,41 @@
             chatContainer.appendChild(typing);
             chatContainer.scrollTop = chatContainer.scrollHeight;
 
-            // Send to API
-            const res = await fetch('/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message })
-            });
+            sendBtn.style.display = 'none';
+            stopBtn.style.display = 'block';
+            currentAbortController = new AbortController();
 
-            const data = await res.json();
-            document.getElementById('typing')?.remove();
-            addMessage(data.response, 'tokyo');
+            try {
+                // Send to API
+                const res = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message }),
+                    signal: currentAbortController.signal
+                });
+
+                const data = await res.json();
+                document.getElementById('typing')?.remove();
+                addMessage(data.response, 'tokyo');
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    document.getElementById('typing')?.remove();
+                    addMessage('Task stopped by user.', 'tokyo');
+                } else {
+                    document.getElementById('typing')?.remove();
+                    addMessage('Error communicating with TOKYO.', 'tokyo');
+                }
+            } finally {
+                sendBtn.style.display = 'block';
+                stopBtn.style.display = 'none';
+                currentAbortController = null;
+            }
+        }
+
+        function stopMessage() {
+            if (currentAbortController) {
+                currentAbortController.abort();
+            }
         }
 
         async function clearHistory() {
